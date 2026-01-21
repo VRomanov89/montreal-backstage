@@ -49,8 +49,13 @@ export default async function IssuePage({ params }: Props) {
         notFound();
     }
 
-    // Extract content - Beehiiv API returns content.html when using expand=content
-    const contentHtml = post.content?.html || post.content?.free?.html || "";
+    // Extract content - Beehiiv API returns content in free_web_content or premium_web_content
+    const contentHtml =
+        post.content?.free_web_content ||
+        post.content?.premium_web_content ||
+        post.content?.html ||
+        post.content?.free?.html ||
+        "";
 
     return (
         <article className="max-w-3xl mx-auto px-6 py-12 md:py-20">
