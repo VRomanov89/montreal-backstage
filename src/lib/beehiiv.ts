@@ -102,7 +102,13 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
 
         if (!postSummary) return null;
 
-        // 2. Fetch full detail
+        // CHECK: If this is a mock post, return it immediately without hitting the API
+        // This prevents 400 errors if keys are invalid but "present" (e.g. placeholders)
+        if (MOCK_POSTS.some(mp => mp.id === postSummary.id)) {
+            return postSummary;
+        }
+
+        // 2. Fetch full detail from API
         const res = await fetch(`https://api.beehiiv.com/v2/publications/${PUB_ID}/posts/${postSummary.id}`, {
             headers: {
                 'Authorization': `Bearer ${API_KEY}`,
