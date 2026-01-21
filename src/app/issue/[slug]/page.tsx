@@ -49,7 +49,7 @@ export default async function IssuePage({ params }: Props) {
         notFound();
     }
 
-    // Fallback content if html is missing or buried in structure
+    // Extract content - Beehiiv API returns content.html when using expand=content
     const contentHtml = post.content?.html || post.content?.free?.html || "";
 
     return (

@@ -118,8 +118,8 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
             return postSummary;
         }
 
-        // 2. Fetch full detail from API
-        const res = await fetch(`https://api.beehiiv.com/v2/publications/${PUB_ID}/posts/${postSummary.id}`, {
+        // 2. Fetch full detail from API with expanded content
+        const res = await fetch(`https://api.beehiiv.com/v2/publications/${PUB_ID}/posts/${postSummary.id}?expand=content`, {
             headers: {
                 'Authorization': `Bearer ${API_KEY}`,
             },
