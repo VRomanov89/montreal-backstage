@@ -126,9 +126,25 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
             next: { revalidate: 60 }
         });
 
-        if (!res.ok) return null;
+        if (!res.ok) {
+            console.error(`Failed to fetch post ${postSummary.id}: ${res.status}`);
+            return null;
+        }
 
         const data = await res.json();
+
+        // Debug logging to understand response structure
+        console.log('=== BEEHIIV POST RESPONSE DEBUG ===');
+        console.log('Post ID:', postSummary.id);
+        console.log('Post Slug:', slug);
+        console.log('Response keys:', Object.keys(data));
+        console.log('Data keys:', data.data ? Object.keys(data.data) : 'no data');
+        console.log('Content structure:', data.data?.content ? Object.keys(data.data.content) : 'no content');
+        console.log('Has content.html?', !!data.data?.content?.html);
+        console.log('Has content.free.html?', !!data.data?.content?.free?.html);
+        console.log('Content preview:', data.data?.content?.html?.substring(0, 200) || 'EMPTY');
+        console.log('=== END DEBUG ===');
+
         return data.data;
 
     } catch (error) {
