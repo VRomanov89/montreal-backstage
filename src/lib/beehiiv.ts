@@ -103,13 +103,17 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     }
 
     try {
-        const res = await fetch(
-            `https://api.beehiiv.com/v2/publications/${PUB_ID}/posts?expand=free_web_content,premium_web_content&limit=50`,
-            {
-                headers: { 'Authorization': `Bearer ${API_KEY}` },
-                next: { revalidate: 60 }
-            }
-        );
+        const url = `https://api.beehiiv.com/v2/publications/${PUB_ID}/posts?expand=free_web_content,premium_web_content&limit=50`;
+
+        console.log('=== BEEHIIV API REQUEST ===');
+        console.log('URL:', url);
+        console.log('Looking for slug:', slug);
+        console.log('=========================');
+
+        const res = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${API_KEY}` },
+            next: { revalidate: 60 }
+        });
 
         if (!res.ok) {
             console.error(`Failed to fetch posts list: ${res.status}`);
@@ -118,17 +122,32 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
 
         const data = await res.json();
         const posts = data.data || [];
+
+        console.log('=== BEEHIIV API RESPONSE ===');
+        console.log('Total posts returned:', posts.length);
+        console.log('First post keys:', posts[0] ? Object.keys(posts[0]) : 'no posts');
+        console.log('First post has content field?', posts[0] ? !!posts[0].content : 'N/A');
+        if (posts[0]?.content) {
+            console.log('Content keys:', Object.keys(posts[0].content));
+        }
+        console.log('============================');
+
         const post = posts.find((p: Post) => p.slug === slug);
-        
-        if (!post) return null;
-        
+
+        if (!post) {
+            console.warn(`Post with slug "${slug}" not found in ${posts.length} posts`);
+            console.log('Available slugs:', posts.map((p: Post) => p.slug).join(', '));
+            return null;
+        }
+
         console.log('=== POST CONTENT CHECK ===');
         console.log('Slug:', slug);
+        console.log('Post keys:', Object.keys(post));
         console.log('Has content?', !!post.content);
         console.log('Has free_web_content?', !!post.content?.free_web_content);
         console.log('Preview:', post.content?.free_web_content?.substring(0, 150) || 'EMPTY');
         console.log('=== END ===');
-        
+
         return post;
     } catch (error) {
         console.error("Error fetching post:", error);
