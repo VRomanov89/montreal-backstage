@@ -103,7 +103,8 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     }
 
     try {
-        const url = `https://api.beehiiv.com/v2/publications/${PUB_ID}/posts?expand=free_web_content,premium_web_content&limit=50`;
+        // Try with status=confirmed - content might only be available for confirmed/sent posts
+        const url = `https://api.beehiiv.com/v2/publications/${PUB_ID}/posts?status=confirmed&expand=free_web_content,premium_web_content&limit=50`;
 
         console.log('=== BEEHIIV API REQUEST ===');
         console.log('URL:', url);
@@ -125,6 +126,7 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
 
         console.log('=== BEEHIIV API RESPONSE ===');
         console.log('Total posts returned:', posts.length);
+        console.log('First post status:', posts[0]?.status || 'N/A');
         console.log('First post keys:', posts[0] ? Object.keys(posts[0]) : 'no posts');
         console.log('First post has content field?', posts[0] ? !!posts[0].content : 'N/A');
         if (posts[0]?.content) {
