@@ -49,12 +49,10 @@ export default async function IssuePage({ params }: Props) {
         notFound();
     }
 
-    // Extract content - Beehiiv API returns content in free_web_content or premium_web_content
+    // Extract content from the nested structure returned by Beehiiv API
     const contentHtml =
-        post.content?.free_web_content ||
-        post.content?.premium_web_content ||
-        post.content?.html ||
-        post.content?.free?.html ||
+        post.content?.free?.web ||
+        post.content?.premium?.web ||
         "";
 
     return (
@@ -75,9 +73,14 @@ export default async function IssuePage({ params }: Props) {
                     {post.title}
                 </h1>
                 {post.subtitle && (
-                    <p className="text-xl text-muted leading-relaxed">
+                    <p className="text-xl text-muted leading-relaxed mb-6">
                         {post.subtitle}
                     </p>
+                )}
+                {post.authors && post.authors.length > 0 && (
+                    <div className="flex items-center text-sm text-secondary gap-2 pt-4 border-t border-secondary/10">
+                        <span className="font-medium">By {post.authors.join(', ')}</span>
+                    </div>
                 )}
             </header>
 

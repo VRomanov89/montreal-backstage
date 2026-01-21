@@ -6,17 +6,19 @@ export interface Post {
     publish_date: number; // Unix timestamp
     thumbnail_url?: string;
     content?: {
-        free_web_content?: string;
-        premium_web_content?: string;
-        free_email_content?: string;
-        premium_email_content?: string;
-        html?: string; // Legacy fallback
         free?: {
-            html: string;
-        }
+            web?: string;
+            email?: string;
+            rss?: string;
+        };
+        premium?: {
+            web?: string;
+            email?: string;
+        };
     };
     status: string;
     web_url?: string;
+    authors?: string[];
 }
 
 const API_KEY = process.env.BEEHIIV_API_KEY;
@@ -32,7 +34,9 @@ const MOCK_POSTS: Post[] = [
         publish_date: 1729766400, // Oct 24 2024
         status: "confirmed",
         content: {
-            html: "<p>This is the full content of the issue about Old Port...</p><h2>New Retailers</h2><p>We are seeing a shift...</p>"
+            free: {
+                web: "<p>The Old Port is undergoing a massive transformation...</p><h2>New Retailers</h2><p>We are seeing a shift...</p>"
+            }
         }
     },
     {
@@ -43,7 +47,9 @@ const MOCK_POSTS: Post[] = [
         publish_date: 1729161600, // Oct 17 2024
         status: "confirmed",
         content: {
-            html: "<p>Details about the metro line extension...</p>"
+            free: {
+                web: "<p>Big changes are coming to the Montreal metro system...</p>"
+            }
         }
     },
     {
@@ -54,7 +60,9 @@ const MOCK_POSTS: Post[] = [
         publish_date: 1728556800, // Oct 10 2024
         status: "confirmed",
         content: {
-            html: "<p>Analysis of the tech sector in Montreal...</p>"
+            free: {
+                web: "<p>Analysis of the tech sector in Montreal...</p>"
+            }
         }
     }
 ];
@@ -62,35 +70,29 @@ const MOCK_POSTS: Post[] = [
 export async function getPosts(limit = 10): Promise<Post[]> {
     if (!API_KEY || !PUB_ID) {
         console.warn("Beehiiv API keys missing. Using mock data.");
-        // return Promise.resolve([]);
         return Promise.resolve(MOCK_POSTS.slice(0, limit));
     }
 
     try {
-        const res = await fetch(`https://api.beehiiv.com/v2/publications/${PUB_ID}/posts?status=confirmed&limit=${limit}`, {
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-            },
+        const url = new URL(`https://api.beehiiv.com/v2/publications/${PUB_ID}/posts`);
+        url.searchParams.append('limit', limit.toString());
+        url.searchParams.append('status', 'confirmed');
+
+        const res = await fetch(url.toString(), {
+            headers: { 'Authorization': `Bearer ${API_KEY}` },
             next: { revalidate: 60 }
         });
 
         if (!res.ok) {
-            if (res.status === 401) {
-                console.error("Beehiiv API Error: 401 Unauthorized. Check your BEEHIIV_API_KEY.");
-            } else if (res.status === 400) {
-                console.error("Beehiiv API Error: 400 Bad Request. Check your BEEHIIV_PUBLICATION_ID. It should usually start with 'pub_'.");
-            }
-            throw new Error(`Failed to fetch posts: ${res.status} ${res.statusText}`);
+            if (res.status === 401) console.error("Beehiiv API Error: Unauthorized (Invalid API Key)");
+            else console.error(`Beehiiv API Error: ${res.status}`);
+            return MOCK_POSTS;
         }
 
         const data = await res.json();
-        return data.data; // Beehiiv returns { data: [...], ... }
+        return data.data || [];
     } catch (error) {
-        // Enhance error visibility for Vercel logs without leaking full secrets
-        const maskedPubId = PUB_ID ? `${PUB_ID.substring(0, 4)}...` : 'undefined';
-        console.error(`Error fetching posts (Pub ID: ${maskedPubId}):`, error);
-
-        // Return mock data so build doesn't crash
+        console.error("Error fetching posts:", error);
         return MOCK_POSTS;
     }
 }
@@ -103,13 +105,18 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     }
 
     try {
-        // Try with status=confirmed - content might only be available for confirmed/sent posts
-        const url = `https://api.beehiiv.com/v2/publications/${PUB_ID}/posts?status=confirmed&expand=free_web_content,premium_web_content&limit=50`;
+        // Correct expansion for multiple fields according to docs playground
+        const baseUrl = `https://api.beehiiv.com/v2/publications/${PUB_ID}/posts`;
+        const params = new URLSearchParams();
+        params.append('slugs[]', slug);
+        params.append('expand', 'free_web_content');
+        params.append('expand', 'premium_web_content');
+        params.append('expand', 'stats'); // Useful for future improvements
 
-        console.log('=== BEEHIIV API REQUEST ===');
+        const url = `${baseUrl}?${params.toString()}`;
+
+        console.log('=== BEEHIIV API REQUEST (OPTIMIZED) ===');
         console.log('URL:', url);
-        console.log('Looking for slug:', slug);
-        console.log('=========================');
 
         const res = await fetch(url, {
             headers: { 'Authorization': `Bearer ${API_KEY}` },
@@ -117,42 +124,32 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
         });
 
         if (!res.ok) {
-            console.error(`Failed to fetch posts list: ${res.status}`);
+            console.error(`Failed to fetch post: ${res.status}`);
             return null;
         }
 
-        const data = await res.json();
-        const posts = data.data || [];
-
-        console.log('=== BEEHIIV API RESPONSE ===');
-        console.log('Total posts returned:', posts.length);
-        console.log('First post status:', posts[0]?.status || 'N/A');
-        console.log('First post keys:', posts[0] ? Object.keys(posts[0]) : 'no posts');
-        console.log('First post has content field?', posts[0] ? !!posts[0].content : 'N/A');
-        if (posts[0]?.content) {
-            console.log('Content keys:', Object.keys(posts[0].content));
-        }
-        console.log('============================');
-
-        const post = posts.find((p: Post) => p.slug === slug);
+        const response = await res.json();
+        const posts = response.data || [];
+        const post = posts[0]; // Filtered by slugs[] so should be index 0
 
         if (!post) {
-            console.warn(`Post with slug "${slug}" not found in ${posts.length} posts`);
-            console.log('Available slugs:', posts.map((p: Post) => p.slug).join(', '));
+            console.warn(`Post with slug "${slug}" not found in API response.`);
             return null;
         }
 
-        console.log('=== POST CONTENT CHECK ===');
-        console.log('Slug:', slug);
-        console.log('Post keys:', Object.keys(post));
-        console.log('Has content?', !!post.content);
-        console.log('Has free_web_content?', !!post.content?.free_web_content);
-        console.log('Preview:', post.content?.free_web_content?.substring(0, 150) || 'EMPTY');
-        console.log('=== END ===');
+        console.log('=== BEEHIIV RESPONSE ANALYSIS ===');
+        console.log('Post ID:', post.id);
+        console.log('Has content field?', !!post.content);
+        if (post.content) {
+            console.log('Content sub-fields:', Object.keys(post.content));
+            console.log('Has content.free?', !!post.content.free);
+            if (post.content.free) console.log('Content.free fields:', Object.keys(post.content.free));
+        }
+        console.log('==============================');
 
         return post;
     } catch (error) {
-        console.error("Error fetching post:", error);
+        console.error("Error fetching post by slug:", error);
         return null;
     }
 }
