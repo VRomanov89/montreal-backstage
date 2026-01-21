@@ -1,0 +1,52 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+:root {
+  /* Brand Palette */
+  --charcoal: #1E1E1E;
+  --fog: #F5F4F2;
+  --concrete: #B8B8B8;
+  --slate: #2F3A44;
+  --brick: #8C3A2B;
+  --signal: #4F6F52;
+
+  /* Semantic Mappings */
+  --background: var(--fog);
+  --foreground: var(--charcoal);
+
+  --primary: var(--charcoal);
+  --secondary: var(--concrete);
+  --muted: var(--slate);
+  --accent: var(--brick);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-signal: var(--signal);
+
+  --font-serif: var(--font-serif);
+  --font-sans: var(--font-sans);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  color: var(--primary);
+}
