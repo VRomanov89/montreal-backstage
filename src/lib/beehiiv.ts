@@ -58,6 +58,7 @@ const MOCK_POSTS: Post[] = [
 export async function getPosts(limit = 10): Promise<Post[]> {
     if (!API_KEY || !PUB_ID) {
         console.warn("Beehiiv API keys missing. Using mock data.");
+        // return Promise.resolve([]);
         return Promise.resolve(MOCK_POSTS.slice(0, limit));
     }
 
@@ -66,7 +67,7 @@ export async function getPosts(limit = 10): Promise<Post[]> {
             headers: {
                 'Authorization': `Bearer ${API_KEY}`,
             },
-            next: { revalidate: 3600 }
+            next: { revalidate: 60 }
         });
 
         if (!res.ok) {
@@ -122,7 +123,7 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
             headers: {
                 'Authorization': `Bearer ${API_KEY}`,
             },
-            next: { revalidate: 3600 }
+            next: { revalidate: 60 }
         });
 
         if (!res.ok) return null;
