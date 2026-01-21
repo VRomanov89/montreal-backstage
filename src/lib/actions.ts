@@ -21,6 +21,11 @@ export async function subscribe(prevState: any, formData: FormData) {
         return { message: 'Subcribed! (Mock Mode)', success: true }
     }
 
+    if (!BEEHIIV_PUB_ID.startsWith('pub_')) {
+        console.error(`Invalid Publication ID format: ${BEEHIIV_PUB_ID}`)
+        return { message: 'Configuration Error: Publication ID must start with "pub_"', success: false }
+    }
+
     try {
         const res = await fetch(
             `https://api.beehiiv.com/v2/publications/${BEEHIIV_PUB_ID}/subscriptions`,
