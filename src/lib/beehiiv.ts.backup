@@ -97,41 +97,63 @@ export async function getPosts(limit = 10): Promise<Post[]> {
 
 export async function getPostBySlug(slug: string): Promise<Post | null> {
     if (!API_KEY || !PUB_ID) {
+        // Simulate API delay
         await new Promise(r => setTimeout(r, 100));
         const post = MOCK_POSTS.find(p => p.slug === slug);
         return post || null;
     }
 
     try {
-        const res = await fetch(
-            `https://api.beehiiv.com/v2/publications/${PUB_ID}/posts?expand=free_web_content,premium_web_content&limit=50`,
-            {
-                headers: { 'Authorization': `Bearer ${API_KEY}` },
-                next: { revalidate: 60 }
-            }
-        );
+        // Beehiiv API doesn't allow fetching by slug directly in the list endpoint efficiently without filtering,
+        // but the standard way is often to list and find, or use the specific endpoint if available.
+        // Actually, getPosts usually returns the list.
+        // To get content we need the retrieval endpoint: /publications/{publication_id}/posts/{post_id}
+        // So we first need to find the ID from the slug.
+
+        // 1. Fetch index to match slug (cached usually)
+        const posts = await getPosts(50);
+        const postSummary = posts.find(p => p.slug === slug);
+
+        if (!postSummary) return null;
+
+        // CHECK: If this is a mock post, return it immediately without hitting the API
+        // This prevents 400 errors if keys are invalid but "present" (e.g. placeholders)
+        if (MOCK_POSTS.some(mp => mp.id === postSummary.id)) {
+            return postSummary;
+        }
+
+        // 2. Fetch full detail from API with web content expanded
+        // Beehiiv requires specific expand values: free_web_content, premium_web_content, etc.
+        const res = await fetch(`https://api.beehiiv.com/v2/publications/${PUB_ID}/posts/${postSummary.id}?expand=free_web_content,premium_web_content`, {
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+            },
+            next: { revalidate: 60 }
+        });
 
         if (!res.ok) {
-            console.error(`Failed to fetch posts list: ${res.status}`);
+            console.error(`Failed to fetch post ${postSummary.id}: ${res.status}`);
             return null;
         }
 
         const data = await res.json();
-        const posts = data.data || [];
-        const post = posts.find((p: Post) => p.slug === slug);
-        
-        if (!post) return null;
-        
-        console.log('=== POST CONTENT CHECK ===');
-        console.log('Slug:', slug);
-        console.log('Has content?', !!post.content);
-        console.log('Has free_web_content?', !!post.content?.free_web_content);
-        console.log('Preview:', post.content?.free_web_content?.substring(0, 150) || 'EMPTY');
-        console.log('=== END ===');
-        
-        return post;
+
+        // Debug logging to understand response structure
+        console.log('=== BEEHIIV POST RESPONSE DEBUG ===');
+        console.log('Post ID:', postSummary.id);
+        console.log('Post Slug:', slug);
+        console.log('Response keys:', Object.keys(data));
+        console.log('Data keys:', data.data ? Object.keys(data.data) : 'no data');
+        console.log('Content structure:', data.data?.content ? Object.keys(data.data.content) : 'no content');
+        console.log('Has content.html?', !!data.data?.content?.html);
+        console.log('Has content.free.html?', !!data.data?.content?.free?.html);
+        console.log('Content preview:', data.data?.content?.html?.substring(0, 200) || 'EMPTY');
+        console.log('=== END DEBUG ===');
+
+        return data.data;
+
     } catch (error) {
-        console.error("Error fetching post:", error);
+        console.error("Error fetching post by slug:", error);
         return null;
     }
 }

@@ -1,0 +1,41 @@
+export async function getPostBySlug(slug: string): Promise<Post | null> {
+    if (!API_KEY || !PUB_ID) {
+        await new Promise(r => setTimeout(r, 100));
+        const post = MOCK_POSTS.find(p => p.slug === slug);
+        return post || null;
+    }
+
+    try {
+        // CRITICAL: Beehiiv expand parameter ONLY works on LIST endpoint, not GET
+        const res = await fetch(
+            `https://api.beehiiv.com/v2/publications/${PUB_ID}/posts?expand=free_web_content,premium_web_content&limit=50`,
+            {
+                headers: { 'Authorization': `Bearer ${API_KEY}` },
+                next: { revalidate: 60 }
+            }
+        );
+
+        if (!res.ok) {
+            console.error(`Failed to fetch posts list: ${res.status}`);
+            return null;
+        }
+
+        const data = await res.json();
+        const posts = data.data || [];
+        const post = posts.find((p: Post) => p.slug === slug);
+        
+        if (!post) return null;
+        
+        console.log('=== POST CONTENT CHECK ===');
+        console.log('Slug:', slug);
+        console.log('Has content?', !!post.content);
+        console.log('Has free_web_content?', !!post.content?.free_web_content);
+        console.log('Preview:', post.content?.free_web_content?.substring(0, 150) || 'EMPTY');
+        console.log('=== END ===');
+        
+        return post;
+    } catch (error) {
+        console.error("Error fetching post:", error);
+        return null;
+    }
+}
