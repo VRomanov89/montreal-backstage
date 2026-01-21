@@ -5,27 +5,11 @@ import { SubscribeForm } from "@/components/ui/SubscribeForm";
 import { PhoneMockup } from "@/components/ui/PhoneMockup";
 import { MontrealMap } from "@/components/ui/MontrealMap";
 import { motion } from "framer-motion";
+import { getPosts } from "@/lib/beehiiv";
 
-const recentIssues = [
-  {
-    slug: "the-shift-in-old-port",
-    title: "The Shift in Old Port",
-    date: "Oct 24, 2024",
-    excerpt: "Why the tourist traps are fading and what’s replacing them."
-  },
-  {
-    slug: "metro-line-extension",
-    title: "Metro Line Extension",
-    date: "Oct 17, 2024",
-    excerpt: "The real impact on property values in the east end."
-  },
-  {
-    slug: "tech-winter",
-    title: "Tech Winter",
-    date: "Oct 10, 2024",
-    excerpt: "Which startups are surviving the funding freeze."
-  },
-];
+
+// Removed hardcoded recentIssues
+
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -34,7 +18,9 @@ const fadeInUp = {
   transition: { duration: 0.6 }
 };
 
-export default function Home() {
+export default async function Home() {
+  const recentIssues = await getPosts(3);
+
   return (
     <div className="flex flex-col gap-0 pb-0 overflow-x-hidden">
       {/* Hero Section */}
@@ -345,21 +331,34 @@ export default function Home() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
-          {recentIssues.map((issue) => (
-            <Link
-              key={issue.slug}
-              href={`/issue/${issue.slug}`}
-              className="group block border border-transparent hover:bg-fog p-8 rounded-sm transition-all hover:scale-[1.01]"
-            >
-              <div className="text-xs text-secondary mb-4 font-bold uppercase tracking-widest">{issue.date}</div>
-              <h3 className="text-2xl font-serif text-primary mb-4 group-hover:text-accent transition-colors leading-snug">
-                {issue.title}
-              </h3>
-              <p className="text-muted text-base leading-relaxed">
-                {issue.excerpt}
-              </p>
-            </Link>
-          ))}
+          {recentIssues.length > 0 ? (
+            recentIssues.map((issue) => (
+              <Link
+                key={issue.slug}
+                href={`/issue/${issue.slug}`}
+                className="group block border border-transparent hover:bg-fog p-8 rounded-sm transition-all hover:scale-[1.01]"
+              >
+                <div className="text-xs text-secondary mb-4 font-bold uppercase tracking-widest">
+                  {new Date(issue.publish_date * 1000).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric"
+                  })}
+                </div>
+                <h3 className="text-2xl font-serif text-primary mb-4 group-hover:text-accent transition-colors leading-snug">
+                  {issue.title}
+                </h3>
+                <p className="text-muted text-base leading-relaxed line-clamp-3">
+                  {issue.subtitle || "Read the latest issue..."}
+                </p>
+              </Link>
+            ))
+          ) : (
+            <div className="col-span-3 text-center py-12 bg-fog rounded-sm">
+              <p className="text-primary font-serif italic text-lg mb-4">No issues published yet.</p>
+              <p className="text-muted text-sm">Sign up above to get the first one.</p>
+            </div>
+          )}
         </div>
       </motion.section>
 
