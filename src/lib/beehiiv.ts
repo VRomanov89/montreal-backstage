@@ -70,13 +70,22 @@ export async function getPosts(limit = 10): Promise<Post[]> {
         });
 
         if (!res.ok) {
-            throw new Error(`Failed to fetch posts: ${res.status}`);
+            if (res.status === 401) {
+                console.error("Beehiiv API Error: 401 Unauthorized. Check your BEEHIIV_API_KEY.");
+            } else if (res.status === 400) {
+                console.error("Beehiiv API Error: 400 Bad Request. Check your BEEHIIV_PUBLICATION_ID. It should usually start with 'pub_'.");
+            }
+            throw new Error(`Failed to fetch posts: ${res.status} ${res.statusText}`);
         }
 
         const data = await res.json();
         return data.data; // Beehiiv returns { data: [...], ... }
     } catch (error) {
-        console.error("Error fetching posts:", error);
+        // Enhance error visibility for Vercel logs without leaking full secrets
+        const maskedPubId = PUB_ID ? `${PUB_ID.substring(0, 4)}...` : 'undefined';
+        console.error(`Error fetching posts (Pub ID: ${maskedPubId}):`, error);
+
+        // Return mock data so build doesn't crash
         return MOCK_POSTS;
     }
 }
