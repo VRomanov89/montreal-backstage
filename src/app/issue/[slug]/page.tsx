@@ -1,4 +1,4 @@
-import { getPostBySlug } from "@/lib/beehiiv";
+import { getPostBySlug, getPosts } from "@/lib/beehiiv";
 import { notFound } from "next/navigation";
 import { SubscribeForm } from "@/components/ui/SubscribeForm";
 import Link from "next/link";
@@ -7,6 +7,18 @@ import { Metadata } from "next";
 type Props = {
     params: Promise<{ slug: string }>;
 };
+
+// Generate static paths for all published posts (ISR)
+export async function generateStaticParams() {
+    const posts = await getPosts(50); // Get up to 50 most recent posts
+
+    return posts.map((post) => ({
+        slug: post.slug,
+    }));
+}
+
+// Enable ISR - revalidate every 60 seconds
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { slug } = await params;
