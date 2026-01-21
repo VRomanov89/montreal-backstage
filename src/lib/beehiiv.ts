@@ -105,45 +105,73 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     }
 
     try {
-        // Correct expansion for multiple fields according to docs playground
-        const baseUrl = `https://api.beehiiv.com/v2/publications/${PUB_ID}/posts`;
-        const params = new URLSearchParams();
-        params.append('slugs[]', slug);
-        params.append('expand', 'free_web_content');
-        params.append('expand', 'premium_web_content');
-        params.append('expand', 'stats'); // Useful for future improvements
+        // Step 1: Find the post ID from the slug by listing posts (no expansion needed yet)
+        const listUrl = new URL(`https://api.beehiiv.com/v2/publications/${PUB_ID}/posts`);
+        listUrl.searchParams.append('slugs[]', slug);
 
-        const url = `${baseUrl}?${params.toString()}`;
-
-        console.log('=== BEEHIIV API REQUEST (OPTIMIZED) ===');
-        console.log('URL:', url);
-
-        const res = await fetch(url, {
+        const listRes = await fetch(listUrl.toString(), {
             headers: { 'Authorization': `Bearer ${API_KEY}` },
             next: { revalidate: 60 }
         });
 
-        if (!res.ok) {
-            console.error(`Failed to fetch post: ${res.status}`);
+        if (!listRes.ok) {
+            console.error(`Failed to fetch post list for slug resolution: ${listRes.status}`);
             return null;
         }
 
-        const response = await res.json();
-        const posts = response.data || [];
-        const post = posts[0]; // Filtered by slugs[] so should be index 0
+        const listResponse = await listRes.json();
+        const postSummary = listResponse.data?.[0]; // Get the first match
+
+        if (!postSummary) {
+            console.warn(`Post with slug "${slug}" not found.`);
+            return null;
+        }
+
+        const postId = postSummary.id;
+
+        // Step 2: Fetch the FULL post by ID with expansions
+        // The "Get post" endpoint is more likely to support expansion for content
+        const baseUrl = `https://api.beehiiv.com/v2/publications/${PUB_ID}/posts/${postId}`;
+        const params = new URLSearchParams();
+        params.append('expand', 'free_web_content');
+        params.append('expand', 'premium_web_content');
+        params.append('expand', 'stats');
+
+        const detailUrl = `${baseUrl}?${params.toString()}`;
+
+        console.log('=== BEEHIIV API REQUEST (ID-BASED) ===');
+        console.log('URL:', detailUrl);
+
+        const detailRes = await fetch(detailUrl, {
+            headers: { 'Authorization': `Bearer ${API_KEY}` },
+            next: { revalidate: 60 }
+        });
+
+        if (!detailRes.ok) {
+            console.error(`Failed to fetch post details for ${postId}: ${detailRes.status}`);
+            return null;
+        }
+
+        const detailResponse = await detailRes.json();
+        const post = detailResponse.data;
 
         if (!post) {
-            console.warn(`Post with slug "${slug}" not found in API response.`);
+            console.warn(`Post data missing for ${postId}`);
             return null;
         }
 
-        console.log('=== BEEHIIV RESPONSE ANALYSIS ===');
+        console.log('=== BEEHIIV RESPONSE ANALYSIS (DETAIL) ===');
         console.log('Post ID:', post.id);
+        console.log('Post Status:', post.status);
         console.log('Has content field?', !!post.content);
         if (post.content) {
             console.log('Content sub-fields:', Object.keys(post.content));
             console.log('Has content.free?', !!post.content.free);
-            if (post.content.free) console.log('Content.free fields:', Object.keys(post.content.free));
+            if (post.content.free) {
+                console.log('Content.free fields:', Object.keys(post.content.free));
+                console.log('Has free web content?', !!post.content.free.web);
+            }
+            console.log('Has content.premium?', !!post.content.premium);
         }
         console.log('==============================');
 
